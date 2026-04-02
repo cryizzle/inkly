@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { calculateReadingCycle, deriveWritingEntries, getWritingStats } from './calculations';
+import {
+	calculateReadingCycle,
+	calculateWritingCycle,
+	deriveWritingEntries,
+	getWritingStats
+} from './calculations';
 import type { ReadingEntry, WritingEntry } from '$lib/types';
 
 describe('writing calculations', () => {
@@ -30,64 +35,33 @@ describe('writing calculations', () => {
 		expect(derived.map((entry) => entry.editingStreak)).toEqual([1, 2, 3, 4, 5, 1]);
 	});
 
-	it('restarts the 15-in-30 cycle after completion', () => {
+	it('starts a new writing cycle only after the target is reached', () => {
 		const entries = Array.from({ length: 16 }, (_, index) => ({
 			id: index + 1,
 			date: `2026-03-${String(index + 1).padStart(2, '0')}`,
 			endingWordCount: 1000 + index
 		}));
 
-		const stats = getWritingStats(entries);
+		const stats = getWritingStats(entries, '2026-03-16');
 		expect(stats.cycle.startDate).toBe('2026-03-16');
 		expect(stats.cycle.currentCount).toBe(1);
 	});
 
-	it('does not count the completion day into the next writing cycle', () => {
+	it('slides the writing window forward when older editing days fall out before completion', () => {
 		const entries: WritingEntry[] = [
-			{ id: 1, date: '2026-02-08', endingWordCount: 1 },
-			{ id: 2, date: '2026-02-09', endingWordCount: 2 },
-			{ id: 3, date: '2026-02-10', endingWordCount: 3 },
-			{ id: 4, date: '2026-02-11', endingWordCount: 4 },
-			{ id: 5, date: '2026-02-12', endingWordCount: 5 },
-			{ id: 6, date: '2026-02-15', endingWordCount: 6 },
-			{ id: 7, date: '2026-02-16', endingWordCount: 7 },
-			{ id: 8, date: '2026-02-17', endingWordCount: 8 },
-			{ id: 9, date: '2026-02-18', endingWordCount: 9 },
-			{ id: 10, date: '2026-02-19', endingWordCount: 10 },
-			{ id: 11, date: '2026-02-20', endingWordCount: 11 },
-			{ id: 12, date: '2026-02-22', endingWordCount: 12 },
-			{ id: 13, date: '2026-02-23', endingWordCount: 13 },
-			{ id: 14, date: '2026-02-24', endingWordCount: 14 },
-			{ id: 15, date: '2026-02-25', endingWordCount: 15 },
-			{ id: 16, date: '2026-02-26', endingWordCount: 16 },
-			{ id: 17, date: '2026-02-27', endingWordCount: 17 },
-			{ id: 18, date: '2026-03-02', endingWordCount: 18 },
-			{ id: 19, date: '2026-03-03', endingWordCount: 19 },
-			{ id: 20, date: '2026-03-05', endingWordCount: 20 },
-			{ id: 21, date: '2026-03-08', endingWordCount: 21 },
-			{ id: 22, date: '2026-03-09', endingWordCount: 22 },
-			{ id: 23, date: '2026-03-11', endingWordCount: 23 },
-			{ id: 24, date: '2026-03-12', endingWordCount: 24 },
-			{ id: 25, date: '2026-03-13', endingWordCount: 25 },
-			{ id: 26, date: '2026-03-14', endingWordCount: 26 },
-			{ id: 27, date: '2026-03-15', endingWordCount: 27 },
-			{ id: 28, date: '2026-03-16', endingWordCount: 28 },
-			{ id: 29, date: '2026-03-18', endingWordCount: 29 },
-			{ id: 30, date: '2026-03-19', endingWordCount: 30 },
-			{ id: 31, date: '2026-03-20', endingWordCount: 31 },
-			{ id: 32, date: '2026-03-21', endingWordCount: 32 },
-			{ id: 33, date: '2026-03-22', endingWordCount: 33 },
-			{ id: 34, date: '2026-03-23', endingWordCount: 34 }
+			{ id: 1, date: '2026-01-01', endingWordCount: 1 },
+			{ id: 2, date: '2026-01-10', endingWordCount: 2 }
 		];
 
-		const stats = getWritingStats(entries);
-		expect(stats.cycle.startDate).toBe('2026-03-20');
-		expect(stats.cycle.currentCount).toBe(4);
+		const cycle = calculateWritingCycle(deriveWritingEntries(entries), 3, '2026-01-31');
+		expect(cycle.startDate).toBe('2026-01-10');
+		expect(cycle.endDate).toBe('2026-02-08');
+		expect(cycle.currentCount).toBe(1);
 	});
 });
 
 describe('reading cycle calculations', () => {
-	it('counts only completed novels and restarts on completion', () => {
+	it('starts a new reading cycle only after the target is reached', () => {
 		const entries: ReadingEntry[] = [
 			{
 				id: 1,
@@ -143,8 +117,71 @@ describe('reading cycle calculations', () => {
 			}
 		];
 
-		const cycle = calculateReadingCycle(entries, 3);
+		const cycle = calculateReadingCycle(entries, 3, '2026-01-16');
 		expect(cycle.startDate).toBe('2026-01-16');
+		expect(cycle.endDate).toBe('2026-02-14');
 		expect(cycle.currentCount).toBe(0);
+	});
+
+	it('shows the next writing cycle immediately after a successful completion even with zero progress', () => {
+		const entries = Array.from({ length: 15 }, (_, index) => ({
+			id: index + 1,
+			date: `2026-03-${String(index + 1).padStart(2, '0')}`,
+			endingWordCount: 1000 + index
+		}));
+
+		const stats = getWritingStats(entries, '2026-03-16');
+		expect(stats.cycle.startDate).toBe('2026-03-16');
+		expect(stats.cycle.endDate).toBe('2026-04-14');
+		expect(stats.cycle.currentCount).toBe(0);
+	});
+
+	it('slides the reading window forward when an older finished book falls out before completion', () => {
+		const entries: ReadingEntry[] = [
+			{
+				id: 1,
+				status: 'Read',
+				verifiedComp: true,
+				title: 'The Girl in His Shadow',
+				author: 'Audrey Blake',
+				genreText: null,
+				remarks: null,
+				similarities: null,
+				liked: null,
+				disliked: null,
+				finishedAt: '2026-03-14'
+			},
+			{
+				id: 2,
+				status: 'Read',
+				verifiedComp: false,
+				title: 'Book Two',
+				author: 'A',
+				genreText: null,
+				remarks: null,
+				similarities: null,
+				liked: null,
+				disliked: null,
+				finishedAt: '2026-03-20'
+			},
+			{
+				id: 3,
+				status: 'Want to Read',
+				verifiedComp: false,
+				title: 'Book Three',
+				author: 'A',
+				genreText: null,
+				remarks: null,
+				similarities: null,
+				liked: null,
+				disliked: null,
+				finishedAt: null
+			}
+		];
+
+		const cycle = calculateReadingCycle(entries, 3, '2026-04-13');
+		expect(cycle.startDate).toBe('2026-03-20');
+		expect(cycle.endDate).toBe('2026-04-18');
+		expect(cycle.currentCount).toBe(1);
 	});
 });

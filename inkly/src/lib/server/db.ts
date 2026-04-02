@@ -3,12 +3,13 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { appSettings, readingEntries, rewardCompletions, rewardMilestones, writingEntries } from './schema';
+import { getDataRoot } from './runtime-paths';
 
 let sqlite: Database.Database | null = null;
 let initialized: Promise<void> | null = null;
 
 function getDbPath() {
-	return join(process.cwd(), 'data', 'inkly.sqlite');
+	return join(getDataRoot(), 'inkly.sqlite');
 }
 
 export function getSqlite() {

@@ -1,13 +1,12 @@
-import { mkdirSync } from 'node:fs';
 import { eq } from 'drizzle-orm';
 import { loadSeedCsv } from './csv';
 import { getDb, getSqlite } from './db';
 import { appSettings, readingEntries, rewardMilestones, writingEntries } from './schema';
 import type { ReadingStatus, RewardKind, RewardMetricType, RewardStatus } from '$lib/types';
+import { recalculateRewards } from './rewards';
 
 function createTables() {
 	const sqlite = getSqlite();
-	mkdirSync('resources/seed', { recursive: true });
 	sqlite.exec(`
 		CREATE TABLE IF NOT EXISTS reward_milestones (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -277,4 +276,3 @@ export async function initializeSchemaAndSeed() {
 	await seedDatabaseIfEmpty();
 	await recalculateRewards();
 }
-import { recalculateRewards } from './rewards';

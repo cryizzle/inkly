@@ -7,6 +7,9 @@ node_modules
 .wrangler
 /.svelte-kit
 /build
+/dist-electron
+/.electron-gyp
+/.electron-home
 
 # OS
 .DS_Store

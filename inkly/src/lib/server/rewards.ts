@@ -3,7 +3,13 @@ import type { ReadingEntry, RewardCompletion, RewardMilestone, WritingEntry } fr
 import { getDb } from './db';
 import { calculateReadingCycle, deriveWritingEntries } from './calculations';
 import { readingEntries, rewardCompletions, rewardMilestones, writingEntries } from './schema';
-import { addDays, diffDays, isWithinCycle } from './time';
+import { addDays, isWithinCycle } from './time';
+
+function trimExpiredDates<T extends { date: string }>(items: T[], referenceDate: string) {
+	while (items.length && !isWithinCycle(referenceDate, items[0].date)) {
+		items.shift();
+	}
+}
 
 function toMilestones(): RewardMilestone[] {
 	return getDb()
@@ -87,28 +93,18 @@ function generateEditingCycleCompletions(entries: WritingEntry[], target: number
 	if (!entries.length) return [];
 
 	const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
-	let cycleStart = sorted[0].date;
-	let count = 0;
-	const seen = new Set<string>();
 	const completions: Omit<RewardCompletion, 'id'>[] = [];
+	const activeDates: Array<{ id: number; date: string }> = [];
 
 	for (const entry of sorted) {
-		if (!isWithinCycle(entry.date, cycleStart)) {
-			cycleStart = entry.date;
-			count = 0;
-			seen.clear();
-		}
+		trimExpiredDates(activeDates, entry.date);
+		activeDates.push({ id: entry.id, date: entry.date });
 
-		if (!seen.has(entry.date)) {
-			seen.add(entry.date);
-			count += 1;
-		}
-
-		if (count >= target) {
-			completions.push(autoRepeatableCompletion(milestoneId, entry.date, cycleStart, `writing:${entry.id}`));
-			cycleStart = addDays(entry.date, 1);
-			count = 0;
-			seen.clear();
+		if (activeDates.length >= target) {
+			completions.push(
+				autoRepeatableCompletion(milestoneId, entry.date, activeDates[0].date, `writing:${entry.id}`)
+			);
+			activeDates.length = 0;
 		}
 	}
 
@@ -125,25 +121,19 @@ function generateReadingCycleCompletions(entries: ReadingEntry[], target: number
 	const qualifying = getCompletedReadingEntries(entries);
 	if (!qualifying.length) return [];
 
-	let cycleStart = qualifying[0].finishedAt!;
-	let count = 0;
 	const completions: Omit<RewardCompletion, 'id'>[] = [];
+	const activeDates: Array<{ id: number; date: string }> = [];
 
 	for (const entry of qualifying) {
 		const finishedAt = entry.finishedAt!;
-		if (!isWithinCycle(finishedAt, cycleStart)) {
-			cycleStart = finishedAt;
-			count = 0;
-		}
+		trimExpiredDates(activeDates, finishedAt);
+		activeDates.push({ id: entry.id, date: finishedAt });
 
-		count += 1;
-
-		if (count >= target) {
+		if (activeDates.length >= target) {
 			completions.push(
-				autoRepeatableCompletion(milestoneId, finishedAt, cycleStart, `reading:${entry.id}`)
+				autoRepeatableCompletion(milestoneId, finishedAt, activeDates[0].date, `reading:${entry.id}`)
 			);
-			cycleStart = addDays(finishedAt, 1);
-			count = 0;
+			activeDates.length = 0;
 		}
 	}
 

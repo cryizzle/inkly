@@ -11,6 +11,16 @@ import type {
 } from '$lib/types';
 import { addDays, diffDays, isWithinCycle } from './time';
 
+function getTodayIso() {
+	return new Date().toISOString().slice(0, 10);
+}
+
+function trimExpiredDates(dates: string[], referenceDate: string) {
+	while (dates.length && !isWithinCycle(referenceDate, dates[0])) {
+		dates.shift();
+	}
+}
+
 export function deriveWritingEntries(entries: WritingEntry[]): WritingEntryDerived[] {
 	const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
 	let previousEnding: number | null = null;
@@ -45,7 +55,11 @@ export function deriveWritingEntries(entries: WritingEntry[]): WritingEntryDeriv
 	});
 }
 
-export function calculateWritingCycle(entries: WritingEntryDerived[], target = 15): CycleProgress {
+export function calculateWritingCycle(
+	entries: WritingEntryDerived[],
+	target = 15,
+	referenceDate = getTodayIso()
+): CycleProgress {
 	if (!entries.length) {
 		return {
 			startDate: null,
@@ -56,39 +70,37 @@ export function calculateWritingCycle(entries: WritingEntryDerived[], target = 1
 		};
 	}
 
-	let cycleStart = entries[0].date;
-	let count = 0;
-	const seen = new Set<string>();
+	const activeDates: string[] = [];
+	let nextCycleStart: string | null = null;
 
 	for (const entry of entries) {
-		if (!isWithinCycle(entry.date, cycleStart)) {
-			cycleStart = entry.date;
-			count = 0;
-			seen.clear();
-		}
+		trimExpiredDates(activeDates, entry.date);
+		activeDates.push(entry.date);
 
-		if (!seen.has(entry.date)) {
-			seen.add(entry.date);
-			count += 1;
-		}
-
-		if (count >= target) {
-			cycleStart = addDays(entry.date, 1);
-			count = 0;
-			seen.clear();
+		if (activeDates.length >= target) {
+			nextCycleStart = addDays(entry.date, 1);
+			activeDates.length = 0;
 		}
 	}
 
+	trimExpiredDates(activeDates, referenceDate);
+
+	let cycleStart = activeDates[0] ?? null;
+	if (!cycleStart && nextCycleStart && diffDays(nextCycleStart, referenceDate) >= 0 && diffDays(nextCycleStart, referenceDate) < 30) {
+		cycleStart = nextCycleStart;
+	}
+	const currentCount = Math.min(activeDates.length, target);
+
 	return {
 		startDate: cycleStart,
-		endDate: addDays(cycleStart, 29),
-		currentCount: count,
+		endDate: cycleStart ? addDays(cycleStart, 29) : null,
+		currentCount,
 		target,
-		progressPct: Math.min(100, Math.round((count / target) * 100))
+		progressPct: Math.min(100, Math.round((currentCount / target) * 100))
 	};
 }
 
-export function getWritingStats(entries: WritingEntry[]): WritingStats {
+export function getWritingStats(entries: WritingEntry[], referenceDate = getTodayIso()): WritingStats {
 	const derived = deriveWritingEntries(entries);
 	const latest = derived.at(-1);
 	return {
@@ -97,7 +109,7 @@ export function getWritingStats(entries: WritingEntry[]): WritingStats {
 		currentStreak: latest?.editingStreak ?? 0,
 		cumulativeAbsWords: latest?.cumulativeAbs ?? 0,
 		totalEditingDays: derived.length,
-		cycle: calculateWritingCycle(derived)
+		cycle: calculateWritingCycle(derived, 15, referenceDate)
 	};
 }
 
@@ -112,7 +124,11 @@ function getQualifyingReadingEntries(entries: ReadingEntry[]) {
 		.sort((a, b) => (a.finishedAt ?? '').localeCompare(b.finishedAt ?? ''));
 }
 
-export function calculateReadingCycle(entries: ReadingEntry[], target: number) {
+export function calculateReadingCycle(
+	entries: ReadingEntry[],
+	target: number,
+	referenceDate = getTodayIso()
+) {
 	const qualifying = getQualifyingReadingEntries(entries);
 
 	if (!qualifying.length) {
@@ -125,34 +141,38 @@ export function calculateReadingCycle(entries: ReadingEntry[], target: number) {
 		};
 	}
 
-	let cycleStart = qualifying[0].finishedAt!;
-	let count = 0;
+	const activeDates: string[] = [];
+	let nextCycleStart: string | null = null;
 
 	for (const entry of qualifying) {
 		const finishDate = entry.finishedAt!;
-		if (!isWithinCycle(finishDate, cycleStart)) {
-			cycleStart = finishDate;
-			count = 0;
-		}
+		trimExpiredDates(activeDates, finishDate);
+		activeDates.push(finishDate);
 
-		count += 1;
-
-		if (count >= target) {
-			cycleStart = addDays(finishDate, 1);
-			count = 0;
+		if (activeDates.length >= target) {
+			nextCycleStart = addDays(finishDate, 1);
+			activeDates.length = 0;
 		}
 	}
 
+	trimExpiredDates(activeDates, referenceDate);
+
+	let cycleStart = activeDates[0] ?? null;
+	if (!cycleStart && nextCycleStart && diffDays(nextCycleStart, referenceDate) >= 0 && diffDays(nextCycleStart, referenceDate) < 30) {
+		cycleStart = nextCycleStart;
+	}
+	const currentCount = Math.min(activeDates.length, target);
+
 	return {
 		startDate: cycleStart,
-		endDate: addDays(cycleStart, 29),
-		currentCount: count,
+		endDate: cycleStart ? addDays(cycleStart, 29) : null,
+		currentCount,
 		target,
-		progressPct: Math.min(100, Math.round((count / target) * 100))
+		progressPct: Math.min(100, Math.round((currentCount / target) * 100))
 	};
 }
 
-export function getReadingStats(entries: ReadingEntry[]): ReadingStats {
+export function getReadingStats(entries: ReadingEntry[], referenceDate = getTodayIso()): ReadingStats {
 	const completed = getCompletedReadingEntries(entries);
 
 	return {
@@ -160,7 +180,7 @@ export function getReadingStats(entries: ReadingEntry[]): ReadingStats {
 			(a.finishedAt ?? a.title).localeCompare(b.finishedAt ?? b.title)
 		),
 		completedBooks: completed.length,
-		currentReadingCycle: calculateReadingCycle(entries, 3)
+		currentReadingCycle: calculateReadingCycle(entries, 3, referenceDate)
 	};
 }
 

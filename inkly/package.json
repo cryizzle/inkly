@@ -2,10 +2,21 @@
 	"name": "inkly",
 	"private": true,
 	"version": "0.0.1",
+	"description": "A local-first writing, reading, and reward tracker for manuscript work.",
+	"author": "crystaltee",
 	"type": "module",
+	"main": "electron/main.mjs",
 	"scripts": {
-		"dev": "vite dev",
+		"rebuild:native": "npm rebuild better-sqlite3",
+		"dev": "npm run rebuild:native && vite dev --host 127.0.0.1 --port 5173",
+		"dev:web": "npm run rebuild:native && vite dev --host 127.0.0.1 --port 5173",
+		"dev:web:desktop": "npm run rebuild:native && vite dev --host 127.0.0.1 --port 5173 --strictPort",
+		"dev:desktop": "concurrently -k \"npm:dev:web:desktop\" \"wait-on http://127.0.0.1:5173 && npm run dev:desktop:electron\"",
+		"dev:desktop:electron": "INKLY_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
 		"build": "vite build",
+		"build:web": "vite build",
+		"build:desktop": "npm run build:web && HOME=$PWD/.electron-home npm_config_devdir=$PWD/.electron-gyp electron-builder --dir",
+		"dist:mac": "npm run build:web && HOME=$PWD/.electron-home npm_config_devdir=$PWD/.electron-gyp electron-builder --mac",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -18,11 +29,15 @@
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@types/better-sqlite3": "^7.6.13",
 		"@types/node": "^25.5.0",
+		"concurrently": "^9.2.1",
+		"electron": "^38.3.0",
+		"electron-builder": "^26.0.12",
 		"svelte": "^5.54.0",
 		"svelte-check": "^4.4.2",
 		"typescript": "^5.9.3",
 		"vite": "^7.3.1",
-		"vitest": "^4.1.1"
+		"vitest": "^4.1.1",
+		"wait-on": "^9.0.1"
 	},
 	"dependencies": {
 		"@sveltejs/adapter-node": "^5.5.4",
@@ -30,5 +45,27 @@
 		"csv-parse": "^6.2.1",
 		"drizzle-orm": "^0.45.1",
 		"zod": "^4.3.6"
+	},
+	"build": {
+		"appId": "com.cryizzle.inkly",
+		"productName": "Inkly",
+		"artifactName": "ink.ly-${version}-${arch}.${ext}",
+		"executableName": "inkly",
+		"directories": {
+			"output": "dist-electron"
+		},
+		"files": [
+			"build/**/*",
+			"electron/**/*",
+			"resources/**/*",
+			"package.json"
+		],
+		"mac": {
+			"category": "public.app-category.productivity",
+			"target": [
+				"dmg",
+				"zip"
+			]
+		}
 	}
 }

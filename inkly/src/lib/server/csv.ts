@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'csv-parse/sync';
+import { getResourcesRoot } from './runtime-paths';
 
 function seedPath(fileName: string) {
-	return join(process.cwd(), 'resources', 'seed', fileName);
+	return join(getResourcesRoot(), 'seed', fileName);
 }
 
 export function loadSeedCsv<T>(fileName: string) {

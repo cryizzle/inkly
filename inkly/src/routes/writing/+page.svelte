@@ -162,18 +162,26 @@
 							<tr>
 								<td colspan="8" style="background: rgba(138, 90, 46, 0.05);">
 									<form id={`writing-update-${entry.id}`} method="POST" action="?/update" class="stack">
-											<input type="hidden" name="id" value={entry.id} />
-											<label><span class="eyebrow">Date</span><input name="date" type="date" value={entry.date} /></label>
-											<label><span class="eyebrow">Ending word count</span><input name="endingWordCount" type="number" value={entry.endingWordCount} /></label>
+										<input type="hidden" name="id" value={entry.id} />
+										<div class="field-grid" style="align-items: end;">
+											<label class="span-3"
+												><span class="eyebrow">Date</span><input name="date" type="date" value={entry.date} /></label
+											>
+											<label class="span-4"
+												><span class="eyebrow">Ending word count</span><input name="endingWordCount" type="number" value={entry.endingWordCount} /></label
+											>
+											<div class="span-5">
+												<div class="button-row" style="justify-content: flex-end;">
+													<button class="button" type="submit" form={`writing-update-${entry.id}`}>Save</button>
+													<button class="button" type="submit" form={`writing-delete-${entry.id}`}>Delete entry</button>
+													<button class="button subtle" type="button" onclick={() => (editingId = null)}>Close</button>
+												</div>
+											</div>
+										</div>
 									</form>
 									<form id={`writing-delete-${entry.id}`} method="POST" action="?/delete">
 										<input type="hidden" name="id" value={entry.id} />
 									</form>
-									<div class="button-row" style="justify-content: flex-end; margin-top: 1rem;">
-										<button class="button" type="submit" form={`writing-update-${entry.id}`}>Save</button>
-										<button class="button" type="submit" form={`writing-delete-${entry.id}`}>Delete entry</button>
-										<button class="button subtle" type="button" onclick={() => (editingId = null)}>Close</button>
-									</div>
 								</td>
 							</tr>
 						{/if}

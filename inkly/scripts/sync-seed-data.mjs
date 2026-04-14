@@ -170,7 +170,6 @@ function normalizeDate(input) {
 const rewardRows = readCsv(sourceFiles.rewards);
 const normalizedRewards = [];
 let repeatable = false;
-let sortOrder = 10;
 
 for (const row of rewardRows) {
 	const category = row['Category']?.trim();
@@ -198,12 +197,8 @@ for (const row of rewardRows) {
 		target_value: metricType === 'manual' ? '' : titleToTargetValue(title),
 		is_repeatable: repeatable ? 1 : 0,
 		status: completedAt ? 'earned' : 'pending',
-		completed_at: completedAt,
-		notes: '',
-		sort_order: sortOrder
+		completed_at: completedAt
 	});
-
-	sortOrder += 10;
 }
 
 const writingRows = readCsv(sourceFiles.writing).map((row) => ({
@@ -242,8 +237,7 @@ writeCsv(
 		'target_value',
 		'is_repeatable',
 		'status',
-		'completed_at',
-		'notes'
+		'completed_at'
 	],
 	normalizedRewards
 );

@@ -9,17 +9,9 @@ import type {
 	WritingEntryDerived,
 	WritingStats
 } from '$lib/types';
-import { addDays, diffDays, isWithinCycle } from './time';
-
-function getTodayIso() {
-	return new Date().toISOString().slice(0, 10);
-}
-
-function trimExpiredDates(dates: string[], referenceDate: string) {
-	while (dates.length && !isWithinCycle(referenceDate, dates[0])) {
-		dates.shift();
-	}
-}
+import { diffDays } from './time';
+import { toLocalIsoDate } from './current-date';
+import { calculateSlidingCycleProgress } from './cycle-engine';
 
 export function deriveWritingEntries(entries: WritingEntry[]): WritingEntryDerived[] {
 	const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
@@ -58,49 +50,16 @@ export function deriveWritingEntries(entries: WritingEntry[]): WritingEntryDeriv
 export function calculateWritingCycle(
 	entries: WritingEntryDerived[],
 	target = 15,
-	referenceDate = getTodayIso()
+	referenceDate = toLocalIsoDate()
 ): CycleProgress {
-	if (!entries.length) {
-		return {
-			startDate: null,
-			endDate: null,
-			currentCount: 0,
-			target,
-			progressPct: 0
-		};
-	}
-
-	const activeDates: string[] = [];
-	let nextCycleStart: string | null = null;
-
-	for (const entry of entries) {
-		trimExpiredDates(activeDates, entry.date);
-		activeDates.push(entry.date);
-
-		if (activeDates.length >= target) {
-			nextCycleStart = addDays(entry.date, 1);
-			activeDates.length = 0;
-		}
-	}
-
-	trimExpiredDates(activeDates, referenceDate);
-
-	let cycleStart = activeDates[0] ?? null;
-	if (!cycleStart && nextCycleStart && diffDays(nextCycleStart, referenceDate) >= 0 && diffDays(nextCycleStart, referenceDate) < 30) {
-		cycleStart = nextCycleStart;
-	}
-	const currentCount = Math.min(activeDates.length, target);
-
-	return {
-		startDate: cycleStart,
-		endDate: cycleStart ? addDays(cycleStart, 29) : null,
-		currentCount,
+	return calculateSlidingCycleProgress(
+		entries.map((entry) => entry.date),
 		target,
-		progressPct: Math.min(100, Math.round((currentCount / target) * 100))
-	};
+		referenceDate
+	);
 }
 
-export function getWritingStats(entries: WritingEntry[], referenceDate = getTodayIso()): WritingStats {
+export function getWritingStats(entries: WritingEntry[], referenceDate = toLocalIsoDate()): WritingStats {
 	const derived = deriveWritingEntries(entries);
 	const latest = derived.at(-1);
 	return {
@@ -127,52 +86,16 @@ function getQualifyingReadingEntries(entries: ReadingEntry[]) {
 export function calculateReadingCycle(
 	entries: ReadingEntry[],
 	target: number,
-	referenceDate = getTodayIso()
+	referenceDate = toLocalIsoDate()
 ) {
-	const qualifying = getQualifyingReadingEntries(entries);
-
-	if (!qualifying.length) {
-		return {
-			startDate: null,
-			endDate: null,
-			currentCount: 0,
-			target,
-			progressPct: 0
-		};
-	}
-
-	const activeDates: string[] = [];
-	let nextCycleStart: string | null = null;
-
-	for (const entry of qualifying) {
-		const finishDate = entry.finishedAt!;
-		trimExpiredDates(activeDates, finishDate);
-		activeDates.push(finishDate);
-
-		if (activeDates.length >= target) {
-			nextCycleStart = addDays(finishDate, 1);
-			activeDates.length = 0;
-		}
-	}
-
-	trimExpiredDates(activeDates, referenceDate);
-
-	let cycleStart = activeDates[0] ?? null;
-	if (!cycleStart && nextCycleStart && diffDays(nextCycleStart, referenceDate) >= 0 && diffDays(nextCycleStart, referenceDate) < 30) {
-		cycleStart = nextCycleStart;
-	}
-	const currentCount = Math.min(activeDates.length, target);
-
-	return {
-		startDate: cycleStart,
-		endDate: cycleStart ? addDays(cycleStart, 29) : null,
-		currentCount,
+	return calculateSlidingCycleProgress(
+		getQualifyingReadingEntries(entries).map((entry) => entry.finishedAt!),
 		target,
-		progressPct: Math.min(100, Math.round((currentCount / target) * 100))
-	};
+		referenceDate
+	);
 }
 
-export function getReadingStats(entries: ReadingEntry[], referenceDate = getTodayIso()): ReadingStats {
+export function getReadingStats(entries: ReadingEntry[], referenceDate = toLocalIsoDate()): ReadingStats {
 	const completed = getCompletedReadingEntries(entries);
 
 	return {

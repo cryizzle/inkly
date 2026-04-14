@@ -10,8 +10,6 @@ export type RewardMetricType =
 export type RewardStatus = 'pending' | 'earned';
 export type CompletionSourceType = 'auto' | 'manual';
 export type ReadingStatus = 'Want to Read' | 'Reading' | 'Read' | 'DNF';
-export type ReadingFormat = 'novel';
-
 export interface RewardMilestone {
 	id: number;
 	category: string;
@@ -23,7 +21,6 @@ export interface RewardMilestone {
 	isRepeatable: boolean;
 	status: RewardStatus;
 	completedAt: string | null;
-	notes: string | null;
 }
 
 export interface RewardCompletion {

@@ -8,6 +8,7 @@ node_modules
 /.svelte-kit
 /build
 /dist-electron
+/electron-dist
 /.electron-gyp
 /.electron-home
 

@@ -1,5 +1,6 @@
 import type { Actions, PageServerLoad } from './$types';
 import { getWritingStats } from '$lib/server/calculations';
+import { toLocalIsoDate } from '$lib/server/current-date';
 import { listWritingEntries } from '$lib/server/data';
 import { createWritingEntry, deleteWritingEntry, updateWritingEntry } from '$lib/server/mutations';
 
@@ -11,9 +12,9 @@ function parsePage(value: string | null) {
 export const load: PageServerLoad = async ({ url }) => {
 	const sort = url.searchParams.get('sort') === 'asc' ? 'asc' : 'desc';
 	const page = parsePage(url.searchParams.get('page'));
-	const today = new Date().toISOString().slice(0, 10);
+	const today = toLocalIsoDate();
 	return {
-		stats: getWritingStats(listWritingEntries()),
+		stats: getWritingStats(listWritingEntries(), today),
 		sort,
 		page,
 		today

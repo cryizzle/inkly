@@ -18,8 +18,7 @@ function createTables() {
 			target_value INTEGER,
 			is_repeatable INTEGER NOT NULL DEFAULT 0,
 			status TEXT NOT NULL DEFAULT 'pending',
-			completed_at TEXT,
-			notes TEXT
+			completed_at TEXT
 		);
 		CREATE TABLE IF NOT EXISTS reward_completions (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,20 +89,19 @@ function createTables() {
 				target_value INTEGER,
 				is_repeatable INTEGER NOT NULL DEFAULT 0,
 				status TEXT NOT NULL DEFAULT 'pending',
-				completed_at TEXT,
-				notes TEXT
+				completed_at TEXT
 			);
 			INSERT INTO reward_milestones (
-				id, category, title, reward_eur, kind, metric_type, target_value, is_repeatable, status, completed_at, notes
+				id, category, title, reward_eur, kind, metric_type, target_value, is_repeatable, status, completed_at
 			)
 			SELECT
-				id, category, title, reward_eur, kind, metric_type, target_value, is_repeatable, status, completed_at, notes
+				id, category, title, reward_eur, kind, metric_type, target_value, is_repeatable, status, completed_at
 			FROM reward_milestones_old;
 			DROP TABLE reward_milestones_old;
 		`);
 	}
 
-	if (rewardColumns.some((column) => column.name === 'sort_order')) {
+	if (rewardColumns.some((column) => column.name === 'sort_order') || rewardColumns.some((column) => column.name === 'notes')) {
 		sqlite.exec(`
 			ALTER TABLE reward_milestones RENAME TO reward_milestones_old;
 			CREATE TABLE reward_milestones (
@@ -116,14 +114,13 @@ function createTables() {
 				target_value INTEGER,
 				is_repeatable INTEGER NOT NULL DEFAULT 0,
 				status TEXT NOT NULL DEFAULT 'pending',
-				completed_at TEXT,
-				notes TEXT
+				completed_at TEXT
 			);
 			INSERT INTO reward_milestones (
-				id, category, title, reward_eur, kind, metric_type, target_value, is_repeatable, status, completed_at, notes
+				id, category, title, reward_eur, kind, metric_type, target_value, is_repeatable, status, completed_at
 			)
 			SELECT
-				id, category, title, reward_eur, kind, metric_type, target_value, is_repeatable, status, completed_at, notes
+				id, category, title, reward_eur, kind, metric_type, target_value, is_repeatable, status, completed_at
 			FROM reward_milestones_old;
 			DROP TABLE reward_milestones_old;
 		`);
@@ -204,7 +201,6 @@ export async function seedDatabaseIfEmpty() {
 		is_repeatable: string;
 		status: RewardStatus;
 		completed_at: string;
-		notes: string;
 	}>('reward_milestones.csv');
 
 	const writing = loadSeedCsv<{
@@ -236,8 +232,7 @@ export async function seedDatabaseIfEmpty() {
 				targetValue: row.target_value ? Number(row.target_value) : null,
 				isRepeatable: row.is_repeatable === '1',
 				status: row.status,
-				completedAt: row.completed_at || null,
-				notes: row.notes || null
+				completedAt: row.completed_at || null
 			}))
 		)
 		.run();

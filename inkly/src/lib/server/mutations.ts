@@ -3,6 +3,7 @@ import type { ReadingStatus, RewardKind, RewardMetricType } from '$lib/types';
 import { getDb } from './db';
 import { recalculateRewards } from './rewards';
 import { readingEntries, rewardMilestones, writingEntries } from './schema';
+import { toLocalIsoDate } from './current-date';
 
 function emptyToNull(value: FormDataEntryValue | null) {
 	if (typeof value !== 'string') return null;
@@ -33,13 +34,23 @@ export async function createWritingEntry(formData: FormData) {
 
 export async function updateWritingEntry(formData: FormData) {
 	const db = getDb();
-	db.update(writingEntries)
-		.set({
-			date: stringValue(formData.get('date')),
-			endingWordCount: Number(stringValue(formData.get('endingWordCount'), '0'))
-		})
-		.where(eq(writingEntries.id, Number(stringValue(formData.get('id'), '0'))))
-		.run();
+	const id = Number(stringValue(formData.get('id'), '0'));
+	const date = stringValue(formData.get('date'));
+	const endingWordCount = Number(stringValue(formData.get('endingWordCount'), '0'));
+	const existing = db.select().from(writingEntries).where(eq(writingEntries.date, date)).get();
+
+	if (existing && existing.id !== id) {
+		db.update(writingEntries).set({ endingWordCount }).where(eq(writingEntries.id, existing.id)).run();
+		db.delete(writingEntries).where(eq(writingEntries.id, id)).run();
+	} else {
+		db.update(writingEntries)
+			.set({
+				date,
+				endingWordCount
+			})
+			.where(eq(writingEntries.id, id))
+			.run();
+	}
 	await recalculateRewards();
 }
 
@@ -110,8 +121,7 @@ export async function createRewardMilestone(formData: FormData) {
 			targetValue: Number(stringValue(formData.get('targetValue'), '0')) || null,
 			isRepeatable: stringValue(formData.get('isRepeatable')) === 'true',
 			status: 'pending',
-			completedAt: null,
-			notes: emptyToNull(formData.get('notes'))
+			completedAt: null
 		})
 		.run();
 	await recalculateRewards();
@@ -127,8 +137,7 @@ export async function updateRewardMilestone(formData: FormData) {
 			kind: stringValue(formData.get('kind'), 'manual') as RewardKind,
 			metricType: stringValue(formData.get('metricType'), 'manual') as RewardMetricType,
 			targetValue: Number(stringValue(formData.get('targetValue'), '0')) || null,
-			isRepeatable: stringValue(formData.get('isRepeatable')) === 'true',
-			notes: emptyToNull(formData.get('notes'))
+			isRepeatable: stringValue(formData.get('isRepeatable')) === 'true'
 		})
 		.where(eq(rewardMilestones.id, Number(stringValue(formData.get('id'), '0'))))
 		.run();
@@ -138,7 +147,7 @@ export async function updateRewardMilestone(formData: FormData) {
 export async function toggleManualReward(formData: FormData) {
 	const db = getDb();
 	const id = Number(stringValue(formData.get('id'), '0'));
-	const completedAt = emptyToNull(formData.get('completedAt')) ?? new Date().toISOString().slice(0, 10);
+	const completedAt = emptyToNull(formData.get('completedAt')) ?? toLocalIsoDate();
 	const shouldComplete = stringValue(formData.get('shouldComplete')) === 'true';
 
 	db.update(rewardMilestones)

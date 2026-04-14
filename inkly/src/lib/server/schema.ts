@@ -10,8 +10,7 @@ export const rewardMilestones = sqliteTable('reward_milestones', {
 	targetValue: integer('target_value'),
 	isRepeatable: integer('is_repeatable', { mode: 'boolean' }).notNull().default(false),
 	status: text('status').notNull().default('pending'),
-	completedAt: text('completed_at'),
-	notes: text('notes')
+	completedAt: text('completed_at')
 });
 
 export const rewardCompletions = sqliteTable('reward_completions', {

@@ -1,5 +1,6 @@
 import type { Actions, PageServerLoad } from './$types';
 import { buildRewardProgress, getReadingStats, getWritingStats } from '$lib/server/calculations';
+import { toLocalIsoDate } from '$lib/server/current-date';
 import { listReadingEntries, listRewardMilestones, listWritingEntries } from '$lib/server/data';
 import {
 	createRewardMilestone,
@@ -15,8 +16,9 @@ function parsePage(value: string | null) {
 }
 
 export const load: PageServerLoad = async ({ url }) => {
-	const writing = getWritingStats(listWritingEntries());
-	const reading = getReadingStats(listReadingEntries());
+	const today = toLocalIsoDate();
+	const writing = getWritingStats(listWritingEntries(), today);
+	const reading = getReadingStats(listReadingEntries(), today);
 	const milestones = buildRewardProgress(listRewardMilestones(), listRewardCompletions(), writing, reading);
 	const milestoneTitleById = new Map(milestones.map((milestone) => [milestone.id, milestone.title]));
 

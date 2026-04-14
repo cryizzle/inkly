@@ -1,15 +1,10 @@
 import { and, asc, desc, eq } from 'drizzle-orm';
 import type { ReadingEntry, RewardCompletion, RewardMilestone, WritingEntry } from '$lib/types';
 import { getDb } from './db';
-import { calculateReadingCycle, deriveWritingEntries } from './calculations';
+import { deriveWritingEntries } from './calculations';
 import { readingEntries, rewardCompletions, rewardMilestones, writingEntries } from './schema';
-import { addDays, isWithinCycle } from './time';
-
-function trimExpiredDates<T extends { date: string }>(items: T[], referenceDate: string) {
-	while (items.length && !isWithinCycle(referenceDate, items[0].date)) {
-		items.shift();
-	}
-}
+import { addDays } from './time';
+import { generateSlidingCycleCompletions } from './cycle-engine';
 
 function toMilestones(): RewardMilestone[] {
 	return getDb()
@@ -27,8 +22,7 @@ function toMilestones(): RewardMilestone[] {
 			targetValue: row.targetValue,
 			isRepeatable: row.isRepeatable,
 			status: row.status as RewardMilestone['status'],
-			completedAt: row.completedAt,
-			notes: row.notes
+			completedAt: row.completedAt
 		}));
 }
 
@@ -92,23 +86,15 @@ function generateEditingStreakCompletions(entries: WritingEntry[], target: numbe
 function generateEditingCycleCompletions(entries: WritingEntry[], target: number, milestoneId: number) {
 	if (!entries.length) return [];
 
-	const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
-	const completions: Omit<RewardCompletion, 'id'>[] = [];
-	const activeDates: Array<{ id: number; date: string }> = [];
-
-	for (const entry of sorted) {
-		trimExpiredDates(activeDates, entry.date);
-		activeDates.push({ id: entry.id, date: entry.date });
-
-		if (activeDates.length >= target) {
-			completions.push(
-				autoRepeatableCompletion(milestoneId, entry.date, activeDates[0].date, `writing:${entry.id}`)
-			);
-			activeDates.length = 0;
-		}
-	}
-
-	return completions;
+	return generateSlidingCycleCompletions(
+		[...entries].sort((a, b) => a.date.localeCompare(b.date)).map((entry) => ({
+			id: entry.id,
+			date: entry.date
+		})),
+		target,
+		(completedAt, periodStart, entry) =>
+			autoRepeatableCompletion(milestoneId, completedAt, periodStart, `writing:${entry.id}`)
+	);
 }
 
 function getCompletedReadingEntries(entries: ReadingEntry[]) {
@@ -121,23 +107,15 @@ function generateReadingCycleCompletions(entries: ReadingEntry[], target: number
 	const qualifying = getCompletedReadingEntries(entries);
 	if (!qualifying.length) return [];
 
-	const completions: Omit<RewardCompletion, 'id'>[] = [];
-	const activeDates: Array<{ id: number; date: string }> = [];
-
-	for (const entry of qualifying) {
-		const finishedAt = entry.finishedAt!;
-		trimExpiredDates(activeDates, finishedAt);
-		activeDates.push({ id: entry.id, date: finishedAt });
-
-		if (activeDates.length >= target) {
-			completions.push(
-				autoRepeatableCompletion(milestoneId, finishedAt, activeDates[0].date, `reading:${entry.id}`)
-			);
-			activeDates.length = 0;
-		}
-	}
-
-	return completions;
+	return generateSlidingCycleCompletions(
+		qualifying.map((entry) => ({
+			id: entry.id,
+			date: entry.finishedAt!
+		})),
+		target,
+		(completedAt, periodStart, entry) =>
+			autoRepeatableCompletion(milestoneId, completedAt, periodStart, `reading:${entry.id}`)
+	);
 }
 
 export async function recalculateRewards() {
@@ -146,7 +124,6 @@ export async function recalculateRewards() {
 	const writing = getWriting();
 	const reading = getReading();
 	const writingDerived = deriveWritingEntries(writing);
-	const readingNovels = getCompletedReadingEntries(reading);
 	const allReadingCompleted = getCompletedReadingEntries(reading);
 
 	db.delete(rewardCompletions).where(eq(rewardCompletions.sourceType, 'auto')).run();

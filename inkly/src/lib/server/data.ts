@@ -1,6 +1,7 @@
 import { asc, desc, eq } from 'drizzle-orm';
 import type { DashboardSummary, ReadingEntry, RewardMilestone, WritingEntry } from '$lib/types';
 import { buildRewardProgress, getReadingStats, getWritingStats } from './calculations';
+import { toLocalIsoDate } from './current-date';
 import { getDb } from './db';
 import { listRewardCompletions } from './rewards';
 import { readingEntries, rewardMilestones, writingEntries } from './schema';
@@ -55,14 +56,14 @@ export function listRewardMilestones(): RewardMilestone[] {
 			targetValue: row.targetValue,
 			isRepeatable: row.isRepeatable,
 			status: row.status as RewardMilestone['status'],
-			completedAt: row.completedAt,
-			notes: row.notes
+			completedAt: row.completedAt
 		}));
 }
 
 export function getDashboardSummary(): DashboardSummary {
-	const writing = getWritingStats(listWritingEntries());
-	const reading = getReadingStats(listReadingEntries());
+	const today = toLocalIsoDate();
+	const writing = getWritingStats(listWritingEntries(), today);
+	const reading = getReadingStats(listReadingEntries(), today);
 	const rewards = buildRewardProgress(listRewardMilestones(), listRewardCompletions(), writing, reading);
 	const milestoneTitleById = new Map(rewards.map((milestone) => [milestone.id, milestone.title]));
 	const recentCompletions = listRewardCompletions()

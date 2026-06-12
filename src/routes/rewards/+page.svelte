@@ -12,7 +12,7 @@
 			activePage: number;
 			earnedPage: number;
 			completionPage: number;
-			completions: (RewardCompletion & { milestoneTitle: string })[];
+			completions: (RewardCompletion & { milestoneTitle: string; rewardEur: number | null })[];
 		};
 	} = $props();
 
@@ -24,7 +24,16 @@
 		data.milestones.filter((milestone) => milestone.isRepeatable || milestone.status !== 'earned')
 	);
 	const earnedMilestones = $derived(
-		data.milestones.filter((milestone) => !milestone.isRepeatable && milestone.status === 'earned')
+		data.milestones
+			.filter((milestone) => !milestone.isRepeatable && milestone.status === 'earned')
+			.sort((left, right) => {
+				const leftDate = left.latestCompletion ?? left.completedAt;
+				const rightDate = right.latestCompletion ?? right.completedAt;
+				if (!leftDate && !rightDate) return 0;
+				if (!leftDate) return 1;
+				if (!rightDate) return -1;
+				return rightDate.localeCompare(leftDate);
+			})
 	);
 	const activeTotalPages = $derived(Math.max(1, Math.ceil(activeMilestones.length / PAGE_SIZE)));
 	const currentActivePage = $derived(Math.min(data.activePage, activeTotalPages));
@@ -70,6 +79,7 @@
 						<th>Milestone</th>
 						<th>Progress</th>
 						<th>Reward</th>
+						<th style="width: 4rem;">Complete</th>
 						<th style="width: 4rem;">Edit</th>
 					</tr>
 				</thead>
@@ -96,6 +106,16 @@
 							</td>
 							<td>EUR {milestone.rewardEur}</td>
 							<td>
+								{#if milestone.kind === 'manual' && !milestone.isRepeatable}
+									<form method="POST" action="?/toggleManual">
+										<input type="hidden" name="id" value={milestone.id} />
+										<input type="hidden" name="completedAt" value={milestone.completedAt ?? ''} />
+										<input type="hidden" name="shouldComplete" value="true" />
+										<button class="button subtle" type="submit" aria-label="Mark complete">&#10003;</button>
+									</form>
+								{/if}
+							</td>
+							<td>
 								<button class="button subtle" type="button" onclick={() => (editingId = editingId === milestone.id ? null : milestone.id)}>
 									&#9998;
 								</button>
@@ -103,7 +123,7 @@
 						</tr>
 						{#if editingId === milestone.id}
 							<tr>
-								<td colspan="5" style="background: rgba(138, 90, 46, 0.05);">
+								<td colspan="6" style="background: rgba(138, 90, 46, 0.05);">
 									<form id={`reward-update-${milestone.id}`} method="POST" action="?/update" class="stack">
 											<input type="hidden" name="id" value={milestone.id} />
 											<input type="hidden" name="kind" value={milestone.kind} />
@@ -117,20 +137,8 @@
 									<form id={`reward-delete-${milestone.id}`} method="POST" action="?/delete">
 										<input type="hidden" name="id" value={milestone.id} />
 									</form>
-									{#if milestone.kind === 'manual'}
-										<form id={`reward-toggle-${milestone.id}`} method="POST" action="?/toggleManual">
-											<input type="hidden" name="id" value={milestone.id} />
-											<input type="hidden" name="completedAt" value={milestone.completedAt ?? ''} />
-											<input type="hidden" name="shouldComplete" value={milestone.status === 'earned' ? 'false' : 'true'} />
-										</form>
-									{/if}
 									<div class="button-row" style="justify-content: flex-end; margin-top: 1rem;">
 										<button class="button" type="submit" form={`reward-update-${milestone.id}`}>Save</button>
-										{#if milestone.kind === 'manual'}
-											<button class="button subtle" type="submit" form={`reward-toggle-${milestone.id}`}>
-												{milestone.status === 'earned' ? 'Mark pending' : 'Mark complete'}
-											</button>
-										{/if}
 										<button class="button" type="submit" form={`reward-delete-${milestone.id}`}>Delete milestone</button>
 										<button class="button subtle" type="button" onclick={() => (editingId = null)}>Close</button>
 									</div>
@@ -244,12 +252,13 @@
 			<div class="table-wrap">
 				<table>
 					<thead>
-						<tr><th>Milestone</th><th>Date</th><th>Source</th><th>Window</th></tr>
+						<tr><th>Milestone</th><th>Reward</th><th>Date</th><th>Source</th><th>Window</th></tr>
 					</thead>
 					<tbody>
 						{#each paginatedCompletions as completion}
 							<tr>
 								<td>{completion.milestoneTitle}</td>
+								<td>{completion.rewardEur === null ? '-' : `EUR ${completion.rewardEur}`}</td>
 								<td>{completion.completedAt}</td>
 								<td>{completion.sourceType}</td>
 								<td>{completion.periodStart ?? '-'} to {completion.periodEnd ?? '-'}</td>

@@ -115,13 +115,25 @@
 			<h2 class="display" style="margin: 0;">Recent reward completions</h2>
 		</div>
 		{#if data.summary.rewards.recentCompletions.length}
-			<div class="stack">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Milestone</th>
+							<th>Reward</th>
+							<th>Date</th>
+						</tr>
+					</thead>
+					<tbody>
 				{#each data.summary.rewards.recentCompletions as completion}
-					<div style="display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid rgba(97, 70, 35, 0.1); padding-bottom: 0.7rem;">
-						<span>{completion.milestoneTitle}</span>
-						<span class="muted">{completion.completedAt}</span>
-					</div>
+						<tr>
+							<td>{completion.milestoneTitle}</td>
+							<td>{completion.rewardEur === null ? '-' : `EUR ${completion.rewardEur}`}</td>
+							<td>{completion.completedAt}</td>
+						</tr>
 				{/each}
+					</tbody>
+				</table>
 			</div>
 		{:else}
 			<div class="empty-state">No reward completions yet.</div>

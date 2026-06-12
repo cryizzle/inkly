@@ -65,12 +65,13 @@ export function getDashboardSummary(): DashboardSummary {
 	const writing = getWritingStats(listWritingEntries(), today);
 	const reading = getReadingStats(listReadingEntries(), today);
 	const rewards = buildRewardProgress(listRewardMilestones(), listRewardCompletions(), writing, reading);
-	const milestoneTitleById = new Map(rewards.map((milestone) => [milestone.id, milestone.title]));
+	const milestoneById = new Map(rewards.map((milestone) => [milestone.id, milestone]));
 	const recentCompletions = listRewardCompletions()
 		.slice(0, 6)
 		.map((completion) => ({
 			...completion,
-			milestoneTitle: milestoneTitleById.get(completion.milestoneId) ?? `Milestone ${completion.milestoneId}`
+			milestoneTitle: milestoneById.get(completion.milestoneId)?.title ?? `Milestone ${completion.milestoneId}`,
+			rewardEur: milestoneById.get(completion.milestoneId)?.rewardEur ?? null
 		}));
 	const totalEarnedValue = rewards
 		.filter((milestone) => milestone.status === 'earned')

@@ -156,7 +156,7 @@ export function buildRewardProgress(
 				progressValue,
 				progressLabel,
 				completionCount: ownCompletions.length,
-				latestCompletion: ownCompletions.at(-1)?.completedAt ?? milestone.completedAt,
+				latestCompletion: ownCompletions[0]?.completedAt ?? milestone.completedAt,
 				status: milestone.isRepeatable ? 'pending' : milestone.status
 			};
 		})

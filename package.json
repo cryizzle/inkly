@@ -63,6 +63,7 @@
 		],
 		"mac": {
 			"category": "public.app-category.productivity",
+			"icon": "resources/icons/inkly-icon.png",
 			"target": [
 				"dmg",
 				"zip"

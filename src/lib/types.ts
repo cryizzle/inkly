@@ -97,7 +97,7 @@ export interface DashboardSummary {
 	rewards: {
 		totalEarnedValue: number;
 		completedMilestones: number;
-		recentCompletions: Array<RewardCompletion & { milestoneTitle: string }>;
+		recentCompletions: Array<RewardCompletion & { milestoneTitle: string; rewardEur: number | null }>;
 		activeMilestones: RewardMilestoneProgress[];
 	};
 }

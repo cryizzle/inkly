@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const writing = getWritingStats(listWritingEntries(), today);
 	const reading = getReadingStats(listReadingEntries(), today);
 	const milestones = buildRewardProgress(listRewardMilestones(), listRewardCompletions(), writing, reading);
-	const milestoneTitleById = new Map(milestones.map((milestone) => [milestone.id, milestone.title]));
+	const milestoneById = new Map(milestones.map((milestone) => [milestone.id, milestone]));
 
 	return {
 		milestones,
@@ -29,7 +29,8 @@ export const load: PageServerLoad = async ({ url }) => {
 		completionPage: parsePage(url.searchParams.get('completionPage')),
 		completions: listRewardCompletions().map((completion) => ({
 			...completion,
-			milestoneTitle: milestoneTitleById.get(completion.milestoneId) ?? `Milestone ${completion.milestoneId}`
+			milestoneTitle: milestoneById.get(completion.milestoneId)?.title ?? `Milestone ${completion.milestoneId}`,
+			rewardEur: milestoneById.get(completion.milestoneId)?.rewardEur ?? null
 		}))
 	};
 };
